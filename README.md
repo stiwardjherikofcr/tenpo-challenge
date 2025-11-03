@@ -74,53 +74,225 @@ Para una comprensión completa del diseño del sistema, consulta los siguientes 
 
 - **[Diagrama de Base de Datos](docs/database-diagram.md)**: Detalla el esquema de la tabla `call_history` con sus campos, tipos de datos, índices (B-Tree y GIN) y optimizaciones para consultas.
 
-### Estructura de Capas
+### Estructura de Capas (Hexagonal Architecture)
 
 ```
 percentage-calculator-service
 ├── domain                          # Capa de dominio (lógica de negocio pura)
 │   ├── model                       # Agregados (CallHistory)
-│   ├── valueobject                 # Value Objects inmutables
+│   ├── valueobject                 # Value Objects inmutables (CalculationRequest, CalculationResult, Percentage)
 │   ├── port
 │   │   ├── in                      # Casos de uso (interfaces)
+│   │   │   ├── CalculateWithPercentageUseCase
+│   │   │   └── QueryCallHistoryUseCase
 │   │   └── out                     # Puertos de salida (interfaces)
+│   │       ├── CallHistoryRepositoryPort
+│   │       ├── PercentageServicePort
+│   │       ├── CachePort
+│   │       └── CalculationEventPort
 │   ├── service                     # Servicios de dominio
+│   │   ├── CalculationDomainService
+│   │   └── PercentageResilienceService
 │   └── exception                   # Excepciones de dominio
 │
 ├── application                     # Capa de aplicación (orquestación)
-│   ├── usecase                     # Implementación de casos de uso
-│   └── service                     # Servicios de aplicación (eventos)
+│   └── usecase                     # Implementación de casos de uso
+│       ├── CalculateWithPercentageUseCaseImpl
+│       └── QueryCallHistoryUseCaseImpl
 │
 └── infrastructure                  # Capa de infraestructura (adaptadores)
     ├── adapter
-    │   ├── in.rest                 # Controladores REST
+    │   ├── in
+    │   │   └── rest                # Controladores REST
+    │   │       ├── CalculationController
+    │   │       └── HistoryController
     │   └── out
     │       ├── persistence         # Adaptador JPA
+    │       │   ├── CallHistoryJpaAdapter
+    │       │   └── entity/CallHistoryEntity
     │       ├── cache               # Adaptador Caffeine
-    │       └── external            # Mock servicio externo
+    │       │   └── CaffeineCacheAdapter
+    │       ├── external            # Mock servicio externo
+    │       │   └── MockPercentageServiceAdapter
+    │       ├── event               # Sistema de eventos (Spring)
+    │       │   ├── publisher       # Publica eventos de cálculo
+    │       │   │   └── CalculationEventPublisher
+    │       │   └── listener        # Escucha eventos async
+    │       │       └── CallHistoryEventListener
+    │       └── factory             # Factories
+    │           └── CallHistoryFactory
     ├── config                      # Configuraciones Spring
+    │   ├── AsyncConfig             # Configuración @Async
+    │   ├── CacheConfig             # Configuración Caffeine
+    │   └── properties/             # ConfigurationProperties
     └── exception                   # Manejador global de excepciones
 ```
 
-### Flujo de Ejecución
+### Principios Arquitectónicos Aplicados
+
+1. **Dependency Inversion Principle (DIP)**
+   - Domain define interfaces (ports), Infrastructure las implementa (adapters)
+   - Application depende de abstracciones del domain, no de implementaciones
+
+2. **Clean Architecture Layers**
+   - **Domain**: Totalmente independiente de frameworks (sin Spring, sin Jackson)
+   - **Application**: Orquesta casos de uso usando ports
+   - **Infrastructure**: Adaptadores concretos con dependencias técnicas
+
+3. **Port/Adapter Pattern**
+   - Puertos de entrada (in): Casos de uso expuestos
+   - Puertos de salida (out): Contratos para servicios externos
+   - Adaptadores: Implementaciones concretas (REST, JPA, Events)
+
+4. **Event-Driven Architecture**
+   - `CalculationEventPort`: Interfaz en domain para publicar eventos
+   - `CalculationEventPublisher`: Implementación en infrastructure usando Spring Events
+   - `CallHistoryEventListener`: Listener async en infrastructure (no bloquea response)
+
+5. **Factory Pattern con Ubicación Estratégica**
+   - `CallHistoryFactory`: En infrastructure porque usa Jackson (ObjectMapper)
+   - Domain mantiene pureza sin dependencias de serialización
+
+### Flujo de Ejecución (Port/Adapter Pattern)
 
 ```
-[Cliente]
-    ↓ HTTP POST /api/v1/calculate
-[CalculationController] (REST Adapter)
-    ↓ DTO → Domain Request
-[CalculateWithPercentageUseCase] (Application)
-    ↓
-[PercentageResilienceService] (Domain)
-    ├─→ [PercentageServicePort] → [MockPercentageServiceAdapter]
-    └─→ [CachePort] → [CaffeineCacheAdapter]
-    ↓
-[CalculationDomainService] (Domain)
-    ↓ Resultado
-[CallHistoryEventPublisher] (Application) ──async──→ [PostgreSQL]
-    ↓
-[Cliente] ← HTTP 200 + Resultado
+[Cliente HTTP]
+    │
+    ↓ POST /api/v1/calculate {num1, num2}
+    │
+┌───▼────────────────────────────────────────┐
+│ INFRASTRUCTURE LAYER (Adapters IN)        │
+│  [CalculationController]                   │
+│   - Recibe DTO                             │
+│   - Valida entrada                         │
+│   - Convierte DTO → CalculationRequest     │
+└───┬────────────────────────────────────────┘
+    │
+    ↓ CalculationRequest
+    │
+┌───▼────────────────────────────────────────┐
+│ APPLICATION LAYER (Use Cases)             │
+│  [CalculateWithPercentageUseCaseImpl]      │
+│   - Orquesta flujo de negocio              │
+│   - Inyecta ports (interfaces)             │
+│   - Publica eventos via port               │
+└───┬────────────────────────────────────────┘
+    │
+    ├─→ PercentageServicePort (interface)
+    │   ├─→ [INFRASTRUCTURE] MockPercentageServiceAdapter
+    │   │   - Simula llamada a servicio externo
+    │   │   - Puede fallar (configurable)
+    │   │
+    │   └─→ CachePort (interface)
+    │       └─→ [INFRASTRUCTURE] CaffeineCacheAdapter
+    │           - Busca en caché
+    │           - Guarda porcentaje obtenido
+    │
+    ↓ Percentage obtenido
+    │
+┌───▼────────────────────────────────────────┐
+│ DOMAIN LAYER (Business Logic)             │
+│  [CalculationDomainService]                │
+│   - sum = num1 + num2                      │
+│   - result = sum + (sum * percentage/100)  │
+│   - Retorna CalculationResult              │
+└───┬────────────────────────────────────────┘
+    │
+    ↓ CalculationResult
+    │
+┌───▼────────────────────────────────────────┐
+│ APPLICATION LAYER                          │
+│  [CalculateWithPercentageUseCaseImpl]      │
+│   - Llama CalculationEventPort.publishSuccess()
+└───┬────────────────────────────────────────┘
+    │
+    ├─→ CalculationEventPort (domain interface)
+    │   │
+    │   └─→ [INFRASTRUCTURE] CalculationEventPublisher
+    │       - Implementa el port usando Spring Events
+    │       - Crea CalculationSuccessEvent
+    │       - Publica con ApplicationEventPublisher
+    │       - Incluye trace context (Micrometer)
+    │
+    ↓ CalculationResult (respuesta inmediata)
+    │
+┌───▼────────────────────────────────────────┐
+│ INFRASTRUCTURE LAYER (Adapters OUT)       │
+│  [CalculationController]                   │
+│   - Convierte CalculationResult → DTO      │
+│   - Retorna HTTP 200 + JSON                │
+└───┬────────────────────────────────────────┘
+    │
+    ↓ HTTP Response
+    │
+[Cliente HTTP] ← {"result": 34.50, "appliedPercentage": 15.0}
+
+
+═══════════════════════════════════════════════════════════
+PROCESAMIENTO ASÍNCRONO (no bloquea la respuesta)
+═══════════════════════════════════════════════════════════
+
+[Spring Events] CalculationSuccessEvent publicado
+    │
+    ↓ @Async
+    │
+┌───▼────────────────────────────────────────┐
+│ INFRASTRUCTURE LAYER (Event Listeners)    │
+│  [CallHistoryEventListener]                │
+│   - Escucha eventos Spring (@EventListener)│
+│   - Propaga trace context                  │
+│   - Procesa en thread separado             │
+└───┬────────────────────────────────────────┘
+    │
+    ↓ CallHistoryFactory.createFromSuccess()
+    │
+┌───▼────────────────────────────────────────┐
+│ INFRASTRUCTURE LAYER (Factories)          │
+│  [CallHistoryFactory]                      │
+│   - Usa Jackson ObjectMapper               │
+│   - Serializa request/response → JSON      │
+│   - Crea CallHistory (domain entity)       │
+└───┬────────────────────────────────────────┘
+    │
+    ↓ CallHistory entity
+    │
+┌───▼────────────────────────────────────────┐
+│ INFRASTRUCTURE LAYER (Persistence)        │
+│  [CallHistoryJpaAdapter]                   │
+│   - Convierte CallHistory → CallHistoryEntity
+│   - Persiste en PostgreSQL                 │
+│   - Tracing: JDBC queries visibles en Zipkin
+└────────────────────────────────────────────┘
+    │
+    ↓ INSERT INTO call_history (...)
+    │
+[PostgreSQL Database] ← Historial persistido
 ```
+
+### Ventajas del Flujo Implementado
+
+1. **Desacoplamiento Total**
+   - Use case depende de `CalculationEventPort` (interfaz), no de implementación
+   - Fácil cambiar Spring Events por RabbitMQ, Kafka, etc.
+
+2. **Testabilidad**
+   - Tests del use case mockean el port, no Spring
+   - Domain services testeables sin infraestructura
+
+3. **Resiliencia**
+   - Response inmediata al cliente (no espera persistencia)
+   - Si falla persistencia, no afecta al cálculo
+   - Circuit Breaker en servicio externo con fallback a caché
+
+4. **Observabilidad**
+   - Trace IDs propagados incluso en eventos asíncronos
+   - Queries SQL visibles en Zipkin (datasource-micrometer)
+   - Métricas de éxito/fallo en cada capa
+
+5. **Clean Architecture**
+   - Domain 100% puro (sin Spring, sin Jackson, sin logs)
+   - Infrastructure totalmente intercambiable
+   - Application orquesta usando contratos
 
 ## 🛠️ Tecnologías
 
@@ -585,29 +757,109 @@ scrape_configs:
 
 ## 🎯 Decisiones de Diseño
 
-### ¿Por qué Hexagonal Architecture?
+### ¿Por qué Hexagonal Architecture (Ports & Adapters)?
 
-- **Testabilidad**: Dominio 100% testeable sin Spring
-- **Independencia**: Fácil cambiar PostgreSQL por MongoDB
-- **Claridad**: Separación explícita de responsabilidades
+- **Testabilidad**: Dominio 100% testeable sin Spring, sin mocks de infraestructura
+- **Independencia**: Fácil cambiar PostgreSQL por MongoDB, o Spring Events por Kafka
+- **Claridad**: Separación explícita de responsabilidades entre capas
+- **Mantenibilidad**: Reglas de negocio aisladas de detalles técnicos
+
+**Ejemplo práctico:**
+```java
+// ❌ ANTES: Acoplamiento directo
+public class UseCase {
+    @Autowired
+    private PercentageService service;  // Implementación concreta
+}
+
+// ✅ DESPUÉS: Dependency Inversion
+public class UseCase {
+    private final PercentageServicePort port;  // Interfaz en domain
+    
+    public UseCase(PercentageServicePort port) {
+        this.port = port;  // Inyección de abstracción
+    }
+}
+```
 
 ### ¿Por qué Caffeine sobre Redis?
 
-- **Simplicidad**: No requiere infraestructura adicional
-- **Performance**: Más rápido para caché local
-- **Escalabilidad**: Fácil migrar a Redis después
+- **Simplicidad**: No requiere infraestructura adicional (sin Redis server)
+- **Performance**: Más rápido para caché local (en memoria del proceso)
+- **Desarrollo**: Ideal para MVP y testing
+- **Escalabilidad**: Fácil migrar a Redis después si se necesita caché distribuido
+
+**Cuando migrar a Redis:**
+- Múltiples instancias de la aplicación (necesitas caché compartido)
+- Cache invalidation coordinada
+- Persistencia del caché entre reinicios
 
 ### ¿Por qué Async para Historial?
 
-- **Performance**: No bloquea la respuesta del cálculo
-- **Resiliencia**: Fallos en BD no afectan al cliente
-- **Desacoplamiento**: Calculation no conoce History
+- **Performance**: No bloquea la respuesta del cálculo (~50ms ahorrados)
+- **Resiliencia**: Fallos en BD no afectan al cliente (HTTP 200 siempre retorna)
+- **Desacoplamiento**: Calculation no conoce History (comunicación por eventos)
+- **Observabilidad**: Trace context propagado incluso en threads asíncronos
+
+**Configuración:**
+```java
+@Async("asyncExecutor")  // Thread pool separado
+public void handleCalculationSuccess(CalculationSuccessEvent event) {
+    // Ejecuta en thread separado sin bloquear response
+}
+```
 
 ### ¿Por qué Mock del Servicio Externo?
 
-- **Testing**: Simula fallos para probar resiliencia
-- **Configuración**: `failure-rate: 0.3` (30% de fallos)
-- **Producción**: Reemplazar con HTTP client real
+**En development:**
+- **Testing**: Simula fallos para probar resiliencia (Circuit Breaker, Retry)
+- **Configuración**: `failure-rate: 0.3` (30% de fallos aleatorios)
+- **Sin dependencias**: No requiere servicio real corriendo
+
+**En production:**
+- Reemplazar con HTTP client real (RestClient, WebClient)
+- Implementar mismo port: `PercentageServicePort`
+- Sin cambios en domain ni application
+
+**Ejemplo de migración:**
+```java
+// Development
+@Profile("dev")
+public class MockPercentageServiceAdapter implements PercentageServicePort { }
+
+// Production
+@Profile("prod")
+public class HttpPercentageServiceAdapter implements PercentageServicePort {
+    private final RestClient restClient;
+    // Llamada HTTP real
+}
+```
+
+### ¿Por qué Distributed Tracing con Zipkin?
+
+**Problema:** Difícil debuggear flows asíncronos y queries lentas
+
+**Solución:** Micrometer Tracing + Zipkin + JDBC Tracing
+
+**Visibilidad obtenida:**
+1. **HTTP → Use Case → Domain**: Latencia de cada capa
+2. **Async Events**: Rastrear eventos incluso en threads separados
+3. **JDBC Queries**: Ver texto completo y latencia de cada query SQL
+4. **Errores**: Stack traces completos correlacionados con trace IDs
+
+**Ejemplo real:**
+```
+Trace ID: 507f1f77bcf86cd799439011
+├─ POST /api/v1/calculate (245ms)
+│  ├─ CalculateWithPercentageUseCase (180ms)
+│  │  ├─ getPercentageWithFallback (120ms)
+│  │  │  └─ Cache lookup (5ms)
+│  │  └─ CalculationDomainService (60ms)
+│  └─ Async Event Publishing (0ms - no bloquea)
+│
+└─ [Async Thread] CallHistoryEventListener (50ms)
+   └─ INSERT INTO call_history (...) (15ms)  ← Query visible
+```
 
 ### Configuración del Mock
 
@@ -620,6 +872,27 @@ percentage:
       enabled: true
       default-percentage: 15.0
       failure-rate: 0.3  # 30% de fallos
+```
+
+### Value Objects Inmutables
+
+**Decisión:** Usar records de Java para Value Objects
+
+**Beneficios:**
+- Inmutabilidad automática (final fields)
+- `equals()`, `hashCode()`, `toString()` generados
+- Menos boilerplate que clases tradicionales
+
+**Ejemplo:**
+```java
+public record CalculationRequest(BigDecimal num1, BigDecimal num2) {
+    // Validación en canonical constructor
+    public CalculationRequest {
+        if (num1 == null || num2 == null) {
+            throw new IllegalArgumentException("Numbers cannot be null");
+        }
+    }
+}
 ```
 
 ## 🔧 Configuración Avanzada

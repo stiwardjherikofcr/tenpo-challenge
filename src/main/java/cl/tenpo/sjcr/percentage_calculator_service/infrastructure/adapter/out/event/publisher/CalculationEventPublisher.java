@@ -3,6 +3,7 @@ package cl.tenpo.sjcr.percentage_calculator_service.infrastructure.adapter.out.e
 import cl.tenpo.sjcr.percentage_calculator_service.domain.event.CalculationFailureEvent;
 import cl.tenpo.sjcr.percentage_calculator_service.domain.event.CalculationSuccessEvent;
 import cl.tenpo.sjcr.percentage_calculator_service.domain.exception.DomainException;
+import cl.tenpo.sjcr.percentage_calculator_service.domain.port.out.CalculationEventPort;
 import cl.tenpo.sjcr.percentage_calculator_service.domain.valueobject.CalculationRequest;
 import cl.tenpo.sjcr.percentage_calculator_service.domain.valueobject.CalculationResult;
 import cl.tenpo.sjcr.percentage_calculator_service.infrastructure.config.context.HttpRequestContext;
@@ -13,7 +14,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 @Component
-public class CalculationEventPublisher {
+public class CalculationEventPublisher implements CalculationEventPort {
 
     private static final Logger log = LoggerFactory.getLogger(CalculationEventPublisher.class);
 
@@ -27,6 +28,7 @@ public class CalculationEventPublisher {
         this.contextProvider = contextProvider;
     }
 
+    @Override
     public void publishSuccess(CalculationRequest request, CalculationResult result) {
         log.debug("Publishing CalculationSuccessEvent for request: {}", request);
 
@@ -42,6 +44,7 @@ public class CalculationEventPublisher {
         applicationEventPublisher.publishEvent(event);
     }
 
+    @Override
     public void publishFailure(CalculationRequest request, Exception exception) {
         log.debug("Publishing CalculationFailureEvent for request: {}", request);
 

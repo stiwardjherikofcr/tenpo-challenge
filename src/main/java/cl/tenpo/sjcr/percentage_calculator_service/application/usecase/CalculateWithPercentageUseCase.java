@@ -1,8 +1,8 @@
 package cl.tenpo.sjcr.percentage_calculator_service.application.usecase;
 
-import cl.tenpo.sjcr.percentage_calculator_service.infrastructure.adapter.out.event.publisher.CalculationEventPublisher;
 import cl.tenpo.sjcr.percentage_calculator_service.domain.exception.DomainException;
 import cl.tenpo.sjcr.percentage_calculator_service.domain.port.in.CalculateUseCase;
+import cl.tenpo.sjcr.percentage_calculator_service.domain.port.out.CalculationEventPort;
 import cl.tenpo.sjcr.percentage_calculator_service.domain.service.CalculationDomainService;
 import cl.tenpo.sjcr.percentage_calculator_service.domain.service.PercentageResilienceService;
 import cl.tenpo.sjcr.percentage_calculator_service.domain.service.PercentageResilienceService.PercentageResolutionResult;
@@ -22,16 +22,15 @@ public class CalculateWithPercentageUseCase implements CalculateUseCase {
 
     private final CalculationDomainService calculationService;
     private final PercentageResilienceService percentageResolver;
-    private final CalculationEventPublisher eventPublisher;
+    private final CalculationEventPort eventPublisher;
     private final Counter successCounter;
     private final Counter failureCounter;
 
     public CalculateWithPercentageUseCase(
             CalculationDomainService calculationService,
             PercentageResilienceService percentageResilienceService,
-            CalculationEventPublisher eventPublisher,
-            MeterRegistry meterRegistry
-    ) {
+            CalculationEventPort eventPublisher,
+            MeterRegistry meterRegistry) {
         this.calculationService = calculationService;
         this.percentageResolver = percentageResilienceService;
         this.eventPublisher = eventPublisher;
