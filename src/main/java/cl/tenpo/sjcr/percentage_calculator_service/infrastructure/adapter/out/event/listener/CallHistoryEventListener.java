@@ -1,8 +1,8 @@
-package cl.tenpo.sjcr.percentage_calculator_service.application.event.listener;
+package cl.tenpo.sjcr.percentage_calculator_service.infrastructure.adapter.out.event.listener;
 
 import cl.tenpo.sjcr.percentage_calculator_service.domain.event.CalculationFailureEvent;
 import cl.tenpo.sjcr.percentage_calculator_service.domain.event.CalculationSuccessEvent;
-import cl.tenpo.sjcr.percentage_calculator_service.domain.factory.CallHistoryFactory;
+import cl.tenpo.sjcr.percentage_calculator_service.infrastructure.adapter.out.factory.CallHistoryFactory;
 import cl.tenpo.sjcr.percentage_calculator_service.domain.model.CallHistory;
 import cl.tenpo.sjcr.percentage_calculator_service.domain.port.out.CallHistoryRepositoryPort;
 import org.slf4j.Logger;
@@ -21,7 +21,8 @@ public class CallHistoryEventListener {
 
     public CallHistoryEventListener(
             CallHistoryRepositoryPort repository,
-            CallHistoryFactory callHistoryFactory) {
+            CallHistoryFactory callHistoryFactory
+    ) {
         this.repository = repository;
         this.callHistoryFactory = callHistoryFactory;
     }

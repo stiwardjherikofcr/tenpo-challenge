@@ -1,4 +1,4 @@
-package cl.tenpo.sjcr.percentage_calculator_service.domain.factory;
+package cl.tenpo.sjcr.percentage_calculator_service.infrastructure.adapter.out.factory;
 
 import cl.tenpo.sjcr.percentage_calculator_service.domain.model.CallHistory;
 import cl.tenpo.sjcr.percentage_calculator_service.domain.valueobject.CalculationRequest;

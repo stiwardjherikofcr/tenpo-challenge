@@ -1,6 +1,6 @@
 package cl.tenpo.sjcr.percentage_calculator_service.infrastructure.config;
 
-import cl.tenpo.sjcr.percentage_calculator_service.domain.factory.CallHistoryFactory;
+import cl.tenpo.sjcr.percentage_calculator_service.infrastructure.adapter.out.factory.CallHistoryFactory;
 import cl.tenpo.sjcr.percentage_calculator_service.domain.port.out.CachePort;
 import cl.tenpo.sjcr.percentage_calculator_service.domain.port.out.PercentageServicePort;
 import cl.tenpo.sjcr.percentage_calculator_service.domain.service.CalculationDomainService;

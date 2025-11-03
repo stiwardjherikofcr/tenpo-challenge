@@ -1,6 +1,6 @@
 package cl.tenpo.sjcr.percentage_calculator_service.application.usecase;
 
-import cl.tenpo.sjcr.percentage_calculator_service.application.event.publisher.CalculationEventPublisher;
+import cl.tenpo.sjcr.percentage_calculator_service.infrastructure.adapter.out.event.publisher.CalculationEventPublisher;
 import cl.tenpo.sjcr.percentage_calculator_service.domain.exception.DomainException;
 import cl.tenpo.sjcr.percentage_calculator_service.domain.port.in.CalculateUseCase;
 import cl.tenpo.sjcr.percentage_calculator_service.domain.service.CalculationDomainService;

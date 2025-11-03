@@ -1,4 +1,4 @@
-package cl.tenpo.sjcr.percentage_calculator_service.application.event.publisher;
+package cl.tenpo.sjcr.percentage_calculator_service.infrastructure.adapter.out.event.publisher;
 
 import cl.tenpo.sjcr.percentage_calculator_service.domain.event.CalculationFailureEvent;
 import cl.tenpo.sjcr.percentage_calculator_service.domain.event.CalculationSuccessEvent;

@@ -1,4 +1,4 @@
-package cl.tenpo.sjcr.percentage_calculator_service.domain.factory;
+package cl.tenpo.sjcr.percentage_calculator_service.infrastructure.adapter.out.factory;
 
 import cl.tenpo.sjcr.percentage_calculator_service.domain.model.CallHistory;
 import cl.tenpo.sjcr.percentage_calculator_service.domain.valueobject.CalculationRequest;
@@ -26,7 +26,8 @@ public class CallHistoryFactory {
             CalculationResult result,
             String endpoint,
             String httpMethod,
-            LocalDateTime timestamp) {
+            LocalDateTime timestamp
+    ) {
         String requestJson = serializeToJson(request, "request");
         String responseJson = serializeToJson(result, "response");
 
@@ -46,7 +47,8 @@ public class CallHistoryFactory {
             int httpStatusCode,
             String endpoint,
             String httpMethod,
-            LocalDateTime timestamp) {
+            LocalDateTime timestamp
+    ) {
         String requestJson = serializeToJson(request, "request");
 
         return CallHistory.builder()
