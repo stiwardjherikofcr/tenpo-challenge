@@ -1,0 +1,70 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: percentage-calculator-db
+    environment:
+      POSTGRES_DB: percentage_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - percentage-network
+
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: percentage-calculator-zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - percentage-network
+    environment:
+      - STORAGE_TYPE=mem
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: percentage-calculator-service
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: percentage_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      SPRING_PROFILES_ACTIVE: docker
+      CACHE_NAME: percentageCache
+      CACHE_EXPIRATION_MINUTES: 30
+      CACHE_MAXIMUM_SIZE: 100
+      CACHE_RECORD_STATS: true
+      PERCENTAGE_DEFAULT: 15.0
+      PERCENTAGE_FAILURE_RATE: 0.3
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      zipkin:
+        condition: service_started
+    networks:
+      - percentage-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  percentage-network:
+    driver: bridge

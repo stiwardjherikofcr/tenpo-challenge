@@ -1,0 +1,246 @@
+{
+  "info": {
+    "name": "Percentage Calculator Service",
+    "description": "Collection for testing the Percentage Calculator REST API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Calculate",
+      "item": [
+        {
+          "name": "Calculate - Success",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"num1\": 10,\n  \"num2\": 20\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/calculate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "calculate"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Calculate - With Decimals",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"num1\": 15.75,\n  \"num2\": 24.25\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/calculate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "calculate"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Calculate - Negative Numbers",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"num1\": -10,\n  \"num2\": 30\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/calculate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "calculate"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Calculate - Invalid (null num1)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"num1\": null,\n  \"num2\": 20\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/calculate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "calculate"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "History",
+      "item": [
+        {
+          "name": "Get History - Default",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/history",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "history"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get History - Paginated",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/history?page=0&size=5&sortBy=timestamp&sortDirection=DESC",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "history"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "5"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "timestamp"
+                },
+                {
+                  "key": "sortDirection",
+                  "value": "DESC"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get History - Sorted by Endpoint",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/history?page=0&size=10&sortBy=endpoint&sortDirection=ASC",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "history"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "endpoint"
+                },
+                {
+                  "key": "sortDirection",
+                  "value": "ASC"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Health & Monitoring",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Metrics - Calculation Success",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/metrics/calculation.success",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "metrics", "calculation.success"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Metrics - Calculation Failure",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/metrics/calculation.failure",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "metrics", "calculation.failure"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Prometheus Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/prometheus",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "prometheus"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ]
+}
